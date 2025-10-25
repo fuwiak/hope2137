@@ -1,0 +1,56 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.log
+*.sqlite3
+*.db
+
+# --- Virtual Environments ---
+.env/
+.venv/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# --- Environment files (DO NOT COMMIT TOKENS) ---
+.env
+.env.local
+.env.backup
+*.env
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- macOS junk ---
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --- Byte-compiled / compiled libraries ---
+*.so
+
+# --- Test cache ---
+.pytest_cache/
+.cache/
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Tools ---
+coverage.xml
+*.cover
+htmlcov/
+
+# --- VS Code Python extension ---
+.python-version
+
+# --- Docker (если будешь использовать) ---
+docker-compose.override.yml
