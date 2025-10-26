@@ -264,9 +264,30 @@ def get_api_data_for_ai():
         for master in masters[:5]:  # Показываем первых 5 мастеров
             name = master.get("name", "Без имени")
             specialization = master.get("specialization", "")
+            staff_id = master.get("id")
+            
             data_text += f"- {name}"
             if specialization:
                 data_text += f" ({specialization})"
+            
+            # Добавляем услуги мастера
+            if staff_id:
+                master_services = get_services_for_master(company_id, staff_id)
+                if master_services:
+                    data_text += f" - услуги: "
+                    service_names = []
+                    for service in master_services:
+                        service_name = service.get("title", "")
+                        cost = service.get("cost", 0)
+                        if service_name:
+                            if cost > 0:
+                                service_names.append(f"{service_name} ({cost}₽)")
+                            else:
+                                service_names.append(service_name)
+                    data_text += ", ".join(service_names[:3])  # Показываем первые 3 услуги
+                    if len(service_names) > 3:
+                        data_text += f" и еще {len(service_names) - 3}"
+            
             data_text += "\n"
         
         return data_text
@@ -928,13 +949,27 @@ async def show_masters(query: CallbackQuery):
             master_services = get_services_for_master(company_id, staff_id)
             if master_services:
                 text += f"   💰 *Услуги:*\n"
-                for service in master_services[:3]:  # Показываем первые 3 услуги
+                for service in master_services:  # Показываем ВСЕ услуги мастера
                     service_name = service.get("title", "")
                     cost = service.get("cost", 0)
-                    if service_name and cost > 0:
-                        text += f"      • {service_name}: {cost} ₽\n"
-                    elif service_name:
-                        text += f"      • {service_name}\n"
+                    price_min = service.get("price_min", 0)
+                    price_max = service.get("price_max", 0)
+                    
+                    if service_name:
+                        text += f"      • {service_name}"
+                        
+                        # Показываем реальные цены
+                        if cost > 0:
+                            text += f": {cost} ₽"
+                        elif price_min > 0 and price_max > 0:
+                            if price_min == price_max:
+                                text += f": {price_min} ₽"
+                            else:
+                                text += f": {price_min}-{price_max} ₽"
+                        elif price_min > 0:
+                            text += f": от {price_min} ₽"
+                        
+                        text += "\n"
         
         text += "\n"
     
@@ -1207,7 +1242,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             api_data = get_api_data_for_ai()
             msg = BOOKING_PROMPT.replace("{{api_data}}", api_data).replace("{{message}}", text).replace("{{history}}", history)
             log.info(f"🤖 AI PROMPT: {msg}")
-            answer = groq_chat([{"role": "user", "content": msg}])
+        answer = groq_chat([{"role": "user", "content": msg}])
             log.info(f"🤖 AI RESPONSE: {answer}")
             
             # Проверяем, содержит ли ответ команду для создания записи
