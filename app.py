@@ -62,13 +62,13 @@ BOOKING_KEYWORDS = [
 BOOKING_PROMPT = """
 Ты помощник по записи к мастерам. Анализируй ВСЮ историю разговора и определи:
 1. Какая услуга нужна
-2. Есть ли предпочтения по мастеру  
+2. Есть ли предпочтения по мастеру
 3. Желаемая дата и время
 
 История разговора:
 {{history}}
 
-Доступные данные:
+Доступные данные (ТОЧНЫЕ ДАННЫЕ ИЗ API):
 {{api_data}}
 
 Сообщение пользователя: {{message}}
@@ -76,6 +76,8 @@ BOOKING_PROMPT = """
 КРИТИЧЕСКИ ВАЖНО: 
 - Используй ТОЛЬКО услуги и мастеров из "Доступные данные" выше
 - НЕ ВЫДУМЫВАЙ услуги - используй только те что есть в списке
+- НЕ ИСПОЛЬЗУЙ форматирование ** - только обычный текст
+- НЕ ПРИДУМЫВАЙ цены - используй только те что указаны в API
 - Если в истории есть информация об услуге, мастере и времени - СОЗДАЙ ЗАПИСЬ
 - Если пользователь повторно пишет "хочу записаться" - проверь историю на наличие всех данных
 - Если есть все данные (услуга, мастер, дата и время) - ответь в формате:
@@ -124,8 +126,8 @@ def groq_chat(messages):
     data = {
         "model": MODEL,
         "messages": messages,
-        "max_tokens": 500,
-        "temperature": 0.4
+        "max_tokens": 1000,
+        "temperature": 0.0
     }
     r = requests.post(BASE, json=data, headers=headers)
     return r.json()["choices"][0]["message"]["content"]
@@ -227,7 +229,7 @@ def get_masters():
         return []
 
 def get_api_data_for_ai():
-    """Get formatted API data for AI responses"""
+    """Get formatted API data for AI responses - EXACT DATA ONLY"""
     try:
         company_id = get_company_id()
         if not company_id:
@@ -237,8 +239,8 @@ def get_api_data_for_ai():
         services = get_services_with_prices(company_id)
         masters = get_masters()
         
-        data_text = "Доступные услуги:\n"
-        for service in services[:5]:  # Показываем первые 5 услуг
+        data_text = "Доступные услуги (ТОЧНЫЕ ДАННЫЕ ИЗ API):\n"
+        for service in services:  # Показываем ВСЕ услуги
             name = service.get("title", "Без названия")
             cost = service.get("cost", 0)
             price_min = service.get("price_min", 0)
@@ -262,8 +264,8 @@ def get_api_data_for_ai():
                 data_text += f" ({duration} мин)"
             data_text += "\n"
         
-        data_text += "\nДоступные мастера:\n"
-        for master in masters[:5]:  # Показываем первых 5 мастеров
+        data_text += "\nДоступные мастера (ТОЧНЫЕ ДАННЫЕ ИЗ API):\n"
+        for master in masters:  # Показываем ВСЕХ мастеров
             name = master.get("name", "Без имени")
             specialization = master.get("specialization", "")
             staff_id = master.get("id")
@@ -297,15 +299,65 @@ def get_api_data_for_ai():
                                 service_names.append(f"{service_name} (от {price_min}₽)")
                             else:
                                 service_names.append(service_name)
-                    data_text += ", ".join(service_names[:3])  # Показываем первые 3 услуги
-                    if len(service_names) > 3:
-                        data_text += f" и еще {len(service_names) - 3}"
+                    data_text += ", ".join(service_names)  # Показываем ВСЕ услуги мастера
             
             data_text += "\n"
         
         return data_text
     except Exception as e:
         log.error(f"Error getting API data: {e}")
+        return "Данные временно недоступны"
+
+def get_master_services_text(master_name: str) -> str:
+    """Get deterministic text for master services - NO AI GENERATION"""
+    try:
+        company_id = get_company_id()
+        if not company_id:
+            return "Данные недоступны"
+            
+        masters = get_masters()
+        master = next((m for m in masters if m.get("name", "").lower() == master_name.lower()), None)
+        
+        if not master:
+            return f"Мастер {master_name} не найден"
+            
+        staff_id = master.get("id")
+        if not staff_id:
+            return f"Нет данных о мастере {master_name}"
+            
+        master_services = get_services_for_master(company_id, staff_id)
+        if not master_services:
+            return f"У мастера {master_name} нет доступных услуг"
+            
+        text = f"Услуги, которые предоставляет {master_name} (цены указаны в рублях):\n\n"
+        
+        for service in master_services:
+            service_name = service.get("title", "")
+            cost = service.get("cost", 0)
+            price_min = service.get("price_min", 0)
+            price_max = service.get("price_max", 0)
+            
+            if service_name:
+                text += f"- {service_name}"
+                
+                # Показываем реальные цены
+                if cost > 0:
+                    text += f" — {cost} ₽"
+                elif price_min > 0 and price_max > 0:
+                    if price_min == price_max:
+                        text += f" — {price_min} ₽"
+                    else:
+                        text += f" — {price_min}-{price_max} ₽"
+                elif price_min > 0:
+                    text += f" — от {price_min} ₽"
+                
+                text += "\n"
+        
+        text += f"\nЕсли хотите записаться к {master_name}, пожалуйста, укажите желаемую дату и время визита."
+        
+        return text
+    except Exception as e:
+        log.error(f"Error getting master services text: {e}")
         return "Данные временно недоступны"
 
 # ===================== NLP PARSING ==================
@@ -1372,13 +1424,30 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     answer = f"❌ *Ошибка при создании записи:* {str(e)}"
         else:
-            # Если не удалось распарсить, используем AI
-            api_data = get_api_data_for_ai()
-            log.info(f"📊 API DATA FOR AI: {api_data}")
-            msg = BOOKING_PROMPT.replace("{{api_data}}", api_data).replace("{{message}}", text).replace("{{history}}", history)
-            log.info(f"🤖 AI PROMPT: {msg}")
-            answer = groq_chat([{"role": "user", "content": msg}])
-            log.info(f"🤖 AI RESPONSE: {answer}")
+            # Проверяем, спрашивает ли пользователь об услугах конкретного мастера
+            masters = get_masters()
+            master_names = [m.get("name", "").lower() for m in masters]
+            
+            # Ищем упоминание имени мастера в сообщении
+            mentioned_master = None
+            for master_name in master_names:
+                if master_name in text.lower():
+                    mentioned_master = master_name
+                    break
+            
+            # Если упоминается мастер, показываем его услуги детерминистически
+            if mentioned_master:
+                master_display_name = next((m.get("name") for m in masters if m.get("name", "").lower() == mentioned_master), mentioned_master)
+                answer = get_master_services_text(master_display_name)
+                log.info(f"🎯 DETERMINISTIC RESPONSE for {master_display_name}: {answer}")
+            else:
+                # Если не удалось распарсить, используем AI
+                api_data = get_api_data_for_ai()
+                log.info(f"📊 API DATA FOR AI: {api_data}")
+                msg = BOOKING_PROMPT.replace("{{api_data}}", api_data).replace("{{message}}", text).replace("{{history}}", history)
+                log.info(f"🤖 AI PROMPT: {msg}")
+                answer = groq_chat([{"role": "user", "content": msg}])
+                log.info(f"🤖 AI RESPONSE: {answer}")
             
             # Проверяем, содержит ли ответ команду для создания записи
             if "ЗАПИСЬ:" in answer:
