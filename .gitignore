@@ -54,3 +54,40 @@ htmlcov/
 
 # --- Docker (если будешь использовать) ---
 docker-compose.override.yml
+
+# --- Node.js / npm ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Puppeteer / Browser cache ---
+.local-chromium/
+chromium/
+chrome-mac/
+*.app/
+
+# --- WhatsApp Web session files ---
+.wwebjs_auth/
+.wwebjs_cache/
+
+# --- Static/Cache files ---
+cache/
+static/
+temp/
+tmp/
+*.cache
+*.tmp
+
+# --- Large binary files ---
+*.dmg
+*.pkg
+*.exe
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# --- Browser downloads ---
+Downloads/
+downloads/

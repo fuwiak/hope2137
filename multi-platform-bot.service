@@ -1,0 +1,29 @@
+[Unit]
+Description=Multi-Platform Bot System (Telegram + WhatsApp)
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=botuser
+Group=botuser
+WorkingDirectory=/opt/bots
+ExecStart=/usr/bin/python3 /opt/bots/run_bots.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables
+Environment=PATH=/usr/bin:/usr/local/bin
+EnvironmentFile=/opt/bots/.env
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/bots
+
+[Install]
+WantedBy=multi-user.target

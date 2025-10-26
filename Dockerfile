@@ -23,5 +23,5 @@ COPY . .
 RUN useradd -m -u 1000 botuser && chown -R botuser:botuser /app
 USER botuser
 
-# Run the Telegram bot
-CMD ["python", "app.py"]
+# Run both bots (Telegram + WhatsApp)
+CMD ["python", "run_bots.py"]
