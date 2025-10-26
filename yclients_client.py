@@ -79,6 +79,20 @@ class YClientsClient:
     def company_services(self, company_id: int) -> Dict[str, Any]:
         # список услуг
         return self.get(f"/services/{company_id}")
+    
+    def get_service_details(self, company_id: int, service_id: int = None, staff_id: int = None, category_id: int = None) -> Dict[str, Any]:
+        """Получить детальную информацию об услугах с ценами"""
+        url = f"/company/{company_id}/services"
+        if service_id:
+            url += f"/{service_id}"
+        
+        params = {}
+        if staff_id:
+            params['staff_id'] = staff_id
+        if category_id:
+            params['category_id'] = category_id
+            
+        return self.get(url, params=params)
 
     def company_masters(self, company_id: int) -> Dict[str, Any]:
         # список мастеров

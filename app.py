@@ -169,6 +169,40 @@ def get_services():
         log.error(f"❌ General Error getting services: {e}")
         return []
 
+def get_services_with_prices(company_id: int) -> List[Dict]:
+    """Получить услуги с реальными ценами"""
+    try:
+        log.info(f"💰 Getting services with prices for company ID: {company_id}")
+        response = yclients.get_service_details(company_id)
+        
+        if response.get("success"):
+            services = response.get("data", [])
+            log.info(f"💰 Found {len(services)} services with prices")
+            return services
+        else:
+            log.error(f"❌ Failed to get services with prices: {response}")
+            return []
+    except Exception as e:
+        log.error(f"❌ Error getting services with prices: {e}")
+        return []
+
+def get_services_for_master(company_id: int, staff_id: int) -> List[Dict]:
+    """Получить услуги для конкретного мастера с ценами"""
+    try:
+        log.info(f"👤 Getting services for master ID: {staff_id}")
+        response = yclients.get_service_details(company_id, staff_id=staff_id)
+        
+        if response.get("success"):
+            services = response.get("data", [])
+            log.info(f"👤 Found {len(services)} services for master {staff_id}")
+            return services
+        else:
+            log.error(f"❌ Failed to get services for master: {response}")
+            return []
+    except Exception as e:
+        log.error(f"❌ Error getting services for master: {e}")
+        return []
+
 def get_masters():
     """Get available masters"""
     log.info("👥 API CALL: Getting masters from YClients...")
@@ -193,17 +227,35 @@ def get_masters():
 def get_api_data_for_ai():
     """Get formatted API data for AI responses"""
     try:
-        services = get_services()
+        company_id = get_company_id()
+        if not company_id:
+            return "Данные недоступны"
+            
+        # Получаем услуги с реальными ценами
+        services = get_services_with_prices(company_id)
         masters = get_masters()
         
         data_text = "Доступные услуги:\n"
         for service in services[:5]:  # Показываем первые 5 услуг
             name = service.get("title", "Без названия")
-            price = service.get("price_min", 0)
+            cost = service.get("cost", 0)
+            price_min = service.get("price_min", 0)
+            price_max = service.get("price_max", 0)
             duration = service.get("length", 0)
+            
             data_text += f"- {name}"
-            if price > 0:
-                data_text += f" (от {price} руб.)"
+            
+            # Показываем реальные цены
+            if cost > 0:
+                data_text += f" ({cost} руб.)"
+            elif price_min > 0 and price_max > 0:
+                if price_min == price_max:
+                    data_text += f" ({price_min} руб.)"
+                else:
+                    data_text += f" ({price_min}-{price_max} руб.)"
+            elif price_min > 0:
+                data_text += f" (от {price_min} руб.)"
+                
             if duration > 0:
                 data_text += f" ({duration} мин)"
             data_text += "\n"
@@ -789,15 +841,23 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await delete_user_record(query, record_id)
 
 async def show_services(query: CallbackQuery):
-    services = get_services()
+    company_id = get_company_id()
+    if not company_id:
+        await query.edit_message_text("❌ Не удалось получить ID компании.")
+        return
+    
+    # Получаем услуги с реальными ценами
+    services = get_services_with_prices(company_id)
     if not services:
         await query.edit_message_text("❌ Не удалось загрузить услуги. Попробуйте позже.")
         return
     
-    text = "✨ *Наши услуги* ✨\n\n"
+    text = "✨ *Наши услуги с ценами* ✨\n\n"
     for i, service in enumerate(services[:8], 1):  # Показываем первые 8 услуг
         name = service.get("title", "Без названия")
-        price = service.get("price_min", 0)
+        price_min = service.get("price_min", 0)
+        price_max = service.get("price_max", 0)
+        cost = service.get("cost", 0)
         duration = service.get("length", 0)
         
         # Красивое форматирование с эмодзи
@@ -811,8 +871,18 @@ async def show_services(query: CallbackQuery):
             emoji = "✨"
             
         text += f"{emoji} *{name}*\n"
-        if price > 0:
-            text += f"   💰 от {price} ₽\n"
+        
+        # Показываем реальные цены
+        if cost > 0:
+            text += f"   💰 {cost} ₽\n"
+        elif price_min > 0 and price_max > 0:
+            if price_min == price_max:
+                text += f"   💰 {price_min} ₽\n"
+            else:
+                text += f"   💰 {price_min}-{price_max} ₽\n"
+        elif price_min > 0:
+            text += f"   💰 от {price_min} ₽\n"
+            
         if duration > 0:
             text += f"   ⏱ {duration} мин\n"
         text += "\n"
@@ -825,15 +895,21 @@ async def show_services(query: CallbackQuery):
     await query.edit_message_text(text, parse_mode='Markdown', reply_markup=reply_markup)
 
 async def show_masters(query: CallbackQuery):
+    company_id = get_company_id()
+    if not company_id:
+        await query.edit_message_text("❌ Не удалось получить ID компании.")
+        return
+        
     masters = get_masters()
     if not masters:
         await query.edit_message_text("❌ Не удалось загрузить мастеров. Попробуйте позже.")
         return
     
-    text = "👥 *Наши мастера* 👥\n\n"
+    text = "👥 *Наши мастера и их услуги* 👥\n\n"
     for master in masters:
         name = master.get("name", "Без имени")
         specialization = master.get("specialization", "")
+        staff_id = master.get("id")
         
         # Красивое форматирование с эмодзи
         if "массаж" in specialization.lower():
@@ -846,6 +922,20 @@ async def show_masters(query: CallbackQuery):
         text += f"{emoji} *{name}*\n"
         if specialization:
             text += f"   🎯 {specialization}\n"
+        
+        # Получаем услуги для этого мастера
+        if staff_id:
+            master_services = get_services_for_master(company_id, staff_id)
+            if master_services:
+                text += f"   💰 *Услуги:*\n"
+                for service in master_services[:3]:  # Показываем первые 3 услуги
+                    service_name = service.get("title", "")
+                    cost = service.get("cost", 0)
+                    if service_name and cost > 0:
+                        text += f"      • {service_name}: {cost} ₽\n"
+                    elif service_name:
+                        text += f"      • {service_name}\n"
+        
         text += "\n"
     
     keyboard = [
@@ -1117,7 +1207,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             api_data = get_api_data_for_ai()
             msg = BOOKING_PROMPT.replace("{{api_data}}", api_data).replace("{{message}}", text).replace("{{history}}", history)
             log.info(f"🤖 AI PROMPT: {msg}")
-            answer = groq_chat([{"role": "user", "content": msg}])
+        answer = groq_chat([{"role": "user", "content": msg}])
             log.info(f"🤖 AI RESPONSE: {answer}")
             
             # Проверяем, содержит ли ответ команду для создания записи
