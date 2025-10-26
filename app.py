@@ -1347,6 +1347,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = update.message.from_user.id
     add_memory(user_id, "user", text)
+    
+    # Флаг для отслеживания отправки ответа
+    response_sent = False
 
     # Проверяем специальные команды
     if text.lower() in ["создать тестовую запись", "тест запись", "добавить запись"]:
@@ -1360,6 +1363,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Используйте меню *'Мои записи'* для просмотра!",
             parse_mode='Markdown'
         )
+        response_sent = True
         return
     
     # Проверяем, является ли сообщение номером телефона
@@ -1371,6 +1375,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Напишите `хочу записаться` для начала.",
             parse_mode='Markdown'
         )
+        response_sent = True
         return
 
     if is_booking(text):
@@ -1393,6 +1398,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         "`+7XXXXXXXXXX`",
                         parse_mode='Markdown'
                     )
+                    response_sent = True
                     return
                 
                 # Создаем запись напрямую
@@ -1469,6 +1475,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 "`+7XXXXXXXXXX`",
                                 parse_mode='Markdown'
                             )
+                            response_sent = True
                             return
                         
                         # ВАЛИДАЦИЯ: Проверяем, существует ли услуга в API
@@ -1486,6 +1493,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                     f"Пожалуйста, выберите услугу из списка доступных.",
                                     parse_mode='Markdown'
                                 )
+                                response_sent = True
                                 return
                         
                         # Создаем реальную запись
@@ -1520,7 +1528,10 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         answer = groq_chat([{"role": "user", "content": msg}])
 
     add_memory(user_id, "assistant", answer)
-    await update.message.reply_text(answer)
+    
+    # Отправляем ответ только если он не был отправлен ранее
+    if answer and not response_sent:  # Проверяем что есть ответ для отправки
+            await update.message.reply_text(answer)
 
 # ===================== RUN BOT ========================
 def main():
