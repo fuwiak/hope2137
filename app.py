@@ -1242,7 +1242,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             api_data = get_api_data_for_ai()
             msg = BOOKING_PROMPT.replace("{{api_data}}", api_data).replace("{{message}}", text).replace("{{history}}", history)
             log.info(f"🤖 AI PROMPT: {msg}")
-        answer = groq_chat([{"role": "user", "content": msg}])
+            answer = groq_chat([{"role": "user", "content": msg}])
             log.info(f"🤖 AI RESPONSE: {answer}")
             
             # Проверяем, содержит ли ответ команду для создания записи
