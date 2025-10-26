@@ -21,7 +21,11 @@ COPY . .
 
 # Create non-root user for security
 RUN useradd -m -u 1000 botuser && chown -R botuser:botuser /app
+
+# Make run_bots.py executable
+RUN chmod +x /app/run_bots.py
+
 USER botuser
 
 # Run both bots (Telegram + WhatsApp)
-CMD ["python", "run_bots.py"]
+CMD ["python3", "/app/run_bots.py"]
