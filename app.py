@@ -245,7 +245,7 @@ def get_api_data_for_ai():
             
             data_text += f"- {name}"
             
-            # Показываем реальные цены
+            # Показываем реальные цены - проверяем все поля цен
             if cost > 0:
                 data_text += f" ({cost} руб.)"
             elif price_min > 0 and price_max > 0:
@@ -279,9 +279,20 @@ def get_api_data_for_ai():
                     for service in master_services:
                         service_name = service.get("title", "")
                         cost = service.get("cost", 0)
+                        price_min = service.get("price_min", 0)
+                        price_max = service.get("price_max", 0)
+                        
                         if service_name:
+                            # Показываем цену из любого доступного поля
                             if cost > 0:
                                 service_names.append(f"{service_name} ({cost}₽)")
+                            elif price_min > 0 and price_max > 0:
+                                if price_min == price_max:
+                                    service_names.append(f"{service_name} ({price_min}₽)")
+                                else:
+                                    service_names.append(f"{service_name} ({price_min}-{price_max}₽)")
+                            elif price_min > 0:
+                                service_names.append(f"{service_name} (от {price_min}₽)")
                             else:
                                 service_names.append(service_name)
                     data_text += ", ".join(service_names[:3])  # Показываем первые 3 услуги
@@ -893,7 +904,7 @@ async def show_services(query: CallbackQuery):
             
         text += f"{emoji} *{name}*\n"
         
-        # Показываем реальные цены
+        # Показываем реальные цены - проверяем все поля цен
         if cost > 0:
             text += f"   💰 {cost} ₽\n"
         elif price_min > 0 and price_max > 0:
@@ -958,7 +969,7 @@ async def show_masters(query: CallbackQuery):
                     if service_name:
                         text += f"      • {service_name}"
                         
-                        # Показываем реальные цены
+                        # Показываем реальные цены - проверяем все поля цен
                         if cost > 0:
                             text += f": {cost} ₽"
                         elif price_min > 0 and price_max > 0:
@@ -1242,7 +1253,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             api_data = get_api_data_for_ai()
             msg = BOOKING_PROMPT.replace("{{api_data}}", api_data).replace("{{message}}", text).replace("{{history}}", history)
             log.info(f"🤖 AI PROMPT: {msg}")
-            answer = groq_chat([{"role": "user", "content": msg}])
+        answer = groq_chat([{"role": "user", "content": msg}])
             log.info(f"🤖 AI RESPONSE: {answer}")
             
             # Проверяем, содержит ли ответ команду для создания записи
