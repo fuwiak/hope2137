@@ -1,31 +1,33 @@
 #!/bin/bash
 
-# Multi-Platform Bot Startup Script
-# Uruchamia oba boty (Telegram + WhatsApp) jednocześnie
-
+# Start both bots in background
 echo "🚀 Starting Multi-Platform Bot System..."
 
-# Sprawdź czy Python jest zainstalowany
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Python3 nie jest zainstalowany!"
-    exit 1
-fi
+# Start Telegram bot in background
+echo "🤖 Starting Telegram Bot..."
+python3 app.py &
+TELEGRAM_PID=$!
 
-# Sprawdź czy plik .env istnieje
-if [ ! -f ".env" ]; then
-    echo "❌ Plik .env nie istnieje!"
-    echo "📝 Utwórz plik .env z wymaganymi zmiennymi środowiskowymi"
-    exit 1
-fi
+# Start WhatsApp bot in background  
+echo "📱 Starting WhatsApp Bot..."
+python3 whatsapp_bot.py &
+WHATSAPP_PID=$!
 
-# Sprawdź czy wymagane pakiety są zainstalowane
-echo "📦 Sprawdzanie zależności..."
-python3 -c "import telegram, yclients, groq, whatsapp_chatbot" 2>/dev/null
-if [ $? -ne 0 ]; then
-    echo "📥 Instalowanie zależności..."
-    pip3 install -r requirements.txt
-fi
+# Function to handle shutdown
+cleanup() {
+    echo "🛑 Shutting down bots..."
+    kill $TELEGRAM_PID $WHATSAPP_PID 2>/dev/null
+    wait $TELEGRAM_PID $WHATSAPP_PID 2>/dev/null
+    echo "✅ Bots stopped successfully!"
+    exit 0
+}
 
-# Uruchom boty
-echo "🎯 Uruchamianie botów..."
-python3 run_bots.py
+# Set up signal handlers
+trap cleanup SIGTERM SIGINT
+
+echo "✅ Both bots started successfully!"
+echo "📊 Telegram Bot PID: $TELEGRAM_PID"
+echo "📊 WhatsApp Bot PID: $WHATSAPP_PID"
+
+# Wait for processes
+wait $TELEGRAM_PID $WHATSAPP_PID
