@@ -15,7 +15,6 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 GROQ_API_KEY=your_groq_api_key
 YCLIENTS_PARTNER_TOKEN=your_yclients_partner_token
 YCLIENTS_USER_TOKEN=your_yclients_user_token
-PORT=8000
 ```
 
 ## 🚀 Deployment Steps
@@ -40,17 +39,11 @@ PORT=8000
 2. Wait for build to complete
 3. Check logs for any errors
 
-## 🔍 Health Check
-
-Your bot will be available at:
-- **Health Check**: `https://your-app.railway.app/health`
-- **Telegram Bot**: Works via webhook/polling
-
 ## 📊 Monitoring
 
 - **Logs**: Available in Railway dashboard
 - **Metrics**: CPU, Memory, Network usage
-- **Health**: Automatic health checks every 30s
+- **Bot Status**: Check logs for "🚀 Starting Telegram Bot..."
 
 ## 🛠️ Troubleshooting
 
@@ -58,13 +51,13 @@ Your bot will be available at:
 
 1. **Build Fails**: Check Dockerfile syntax
 2. **Bot Not Responding**: Verify environment variables
-3. **Health Check Fails**: Check Flask app is running
+3. **Import Errors**: Check requirements.txt
 
 ### Debug Commands:
 
 ```bash
-# Check if bot is running
-curl https://your-app.railway.app/health
+# Test locally first
+python test_local.py
 
 # Check logs
 railway logs
@@ -80,8 +73,8 @@ To update your bot:
 
 ## 📝 Notes
 
-- **Port**: Railway sets `PORT` environment variable automatically
-- **Health Check**: Required for Railway to know your app is healthy
+- **No Web Server**: This is a pure Telegram bot, no HTTP server needed
+- **Polling Mode**: Bot uses Telegram polling (no webhook needed)
 - **Logs**: Available in Railway dashboard under "Deployments"
 - **Scaling**: Railway can auto-scale based on usage
 
@@ -89,14 +82,14 @@ To update your bot:
 
 ✅ **Deployment Successful** when you see:
 - Build completed without errors
-- Health check returns `200 OK`
+- Logs show "🚀 Starting Telegram Bot..."
 - Bot responds to `/start` command
-- Logs show "Bot started successfully"
+- No import errors in logs
 
 ## 🆘 Support
 
 If you encounter issues:
 1. Check Railway logs
 2. Verify environment variables
-3. Test locally first
+3. Test locally first: `python test_local.py`
 4. Check Railway documentation

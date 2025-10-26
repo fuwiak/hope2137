@@ -9,7 +9,6 @@ from typing import Dict, Deque, List, Tuple
 
 import requests
 from dotenv import load_dotenv
-from flask import Flask, jsonify
 from telegram import Update, Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -25,18 +24,6 @@ from yclients_client import YClientsClient, YClientsError
 
 # ===================== LOAD .ENV ======================
 load_dotenv()  # <-- loads variables from .env file
-
-# ===================== FLASK APP FOR HEALTH CHECKS ======================
-app = Flask(__name__)
-
-@app.route('/health')
-def health_check():
-    """Health check endpoint for Railway"""
-    return jsonify({
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "service": "telegram-bot"
-    })
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -1130,7 +1117,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             api_data = get_api_data_for_ai()
             msg = BOOKING_PROMPT.replace("{{api_data}}", api_data).replace("{{message}}", text).replace("{{history}}", history)
             log.info(f"🤖 AI PROMPT: {msg}")
-            answer = groq_chat([{"role": "user", "content": msg}])
+        answer = groq_chat([{"role": "user", "content": msg}])
             log.info(f"🤖 AI RESPONSE: {answer}")
             
             # Проверяем, содержит ли ответ команду для создания записи
@@ -1191,30 +1178,22 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===================== RUN BOT ========================
 def main():
-    # Start Flask in background for health checks
-    import threading
-    port = int(os.getenv("PORT", 8000))
-    
-    def run_flask():
-        app.run(host="0.0.0.0", port=port, debug=False)
-    
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-    
     # Start Telegram bot
-    telegram_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     
     # Command handlers
-    telegram_app.add_handler(CommandHandler("start", start))
-    telegram_app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("menu", menu))
     
     # Callback query handler for inline buttons
-    telegram_app.add_handler(CallbackQueryHandler(button_callback))
+    app.add_handler(CallbackQueryHandler(button_callback))
     
     # Message handler for AI chat
-    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply))
     
-    telegram_app.run_polling()
+    # Start bot
+    log.info("🚀 Starting Telegram Bot...")
+    app.run_polling()
 
 if __name__ == "__main__":
     main()

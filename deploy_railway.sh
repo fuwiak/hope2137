@@ -35,3 +35,4 @@ railway domain
 echo "✅ Deployment complete!"
 echo "🔍 Check health: https://your-app.railway.app/health"
 echo "📊 Monitor logs: railway logs"
+
