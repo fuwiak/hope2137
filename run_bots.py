@@ -7,6 +7,7 @@ import sys
 import time
 import threading
 import logging
+import asyncio
 from dotenv import load_dotenv
 
 # Load environment variables
