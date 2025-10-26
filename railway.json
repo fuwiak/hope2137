@@ -7,7 +7,7 @@
   "deploy": {
     "runtime": "V2",
     "numReplicas": 1,
-    "startCommand": "python run_bots.py",
+    "startCommand": "docker-compose up --build",
     "sleepApplication": false,
     "useLegacyStacker": false,
     "multiRegionConfig": {
