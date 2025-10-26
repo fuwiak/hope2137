@@ -126,9 +126,9 @@ def get_services_data():
         company_id = get_company_id()
         if not company_id:
             return "Ошибка получения данных компании"
-    
+        
         # Get services using the same method as Telegram bot
-            services_response = yclients.company_services(company_id)
+        services_response = yclients.company_services(company_id)
         services_data = services_response.get("data", [])
         
         # Get masters using the same method as Telegram bot
