@@ -1,0 +1,25 @@
+{
+  "name": "whatsapp-bot-bridge",
+  "version": "1.0.0",
+  "description": "WhatsApp bridge for Python Telegram bot",
+  "main": "whatsapp_bridge.js",
+  "scripts": {
+    "start": "node whatsapp_bridge.js",
+    "install-deps": "npm install"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.23.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "telegram",
+    "bridge"
+  ],
+  "author": "Beauty Studio Bot",
+  "license": "MIT"
+}

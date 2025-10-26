@@ -3,11 +3,42 @@ version: '3.8'
 services:
   telegram-bot:
     build: .
+    container_name: telegram-bot
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - YCLIENTS_PARTNER_TOKEN=${YCLIENTS_PARTNER_TOKEN}
       - YCLIENTS_USER_TOKEN=${YCLIENTS_USER_TOKEN}
     volumes:
-      - ./.env:/app/.env
+      - ./logs:/app/logs
     restart: unless-stopped
+    command: python app.py
+
+  whatsapp-bot:
+    build: .
+    container_name: whatsapp-bot
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - YCLIENTS_PARTNER_TOKEN=${YCLIENTS_PARTNER_TOKEN}
+      - YCLIENTS_USER_TOKEN=${YCLIENTS_USER_TOKEN}
+    volumes:
+      - ./logs:/app/logs
+      - ./whatsapp-sessions:/app/whatsapp-sessions
+    restart: unless-stopped
+    command: python whatsapp_bot.py
+    depends_on:
+      - telegram-bot
+
+  multi-bot:
+    build: .
+    container_name: multi-platform-bot
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - YCLIENTS_PARTNER_TOKEN=${YCLIENTS_PARTNER_TOKEN}
+      - YCLIENTS_USER_TOKEN=${YCLIENTS_USER_TOKEN}
+    volumes:
+      - ./logs:/app/logs
+      - ./whatsapp-sessions:/app/whatsapp-sessions
+    restart: unless-stopped
+    command: python multi_bot.py
