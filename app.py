@@ -871,6 +871,93 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data.startswith("delete_record_"):
         record_id = int(query.data.replace("delete_record_", ""))
         await delete_user_record(query, record_id)
+    elif query.data.startswith("services_page_"):
+        await show_services_page(query)
+
+async def show_services_page(query: CallbackQuery):
+    """Показать конкретную страницу услуг"""
+    try:
+        page_offset = int(query.data.replace("services_page_", ""))
+        company_id = get_company_id()
+        if not company_id:
+            await query.edit_message_text("❌ Не удалось получить ID компании.")
+            return
+        
+        # Получаем услуги с реальными ценами
+        services = get_services_with_prices(company_id)
+        if not services:
+            await query.edit_message_text("❌ Не удалось загрузить услуги. Попробуйте позже.")
+            return
+        
+        # Разделяем услуги на части по 6 услуг на сообщение
+        services_per_message = 6
+        total_services = len(services)
+        
+        page_services = services[page_offset:page_offset + services_per_message]
+        page_number = page_offset // services_per_message + 1
+        
+        text = f"✨ *Услуги (часть {page_number})* ✨\n\n"
+        
+        for i, service in enumerate(page_services, 1):
+            name = service.get("title", "Без названия")
+            price_min = service.get("price_min", 0)
+            price_max = service.get("price_max", 0)
+            cost = service.get("cost", 0)
+            duration = service.get("length", 0)
+            
+            # Красивое форматирование с эмодзи
+            if "маникюр" in name.lower():
+                emoji = "💅"
+            elif "педикюр" in name.lower():
+                emoji = "🦶"
+            elif "массаж" in name.lower():
+                emoji = "💆"
+            else:
+                emoji = "✨"
+                
+            text += f"{emoji} *{name}*\n"
+            
+            # Показываем реальные цены
+            if cost > 0:
+                text += f"   💰 {cost} ₽\n"
+            elif price_min > 0 and price_max > 0:
+                if price_min == price_max:
+                    text += f"   💰 {price_min} ₽\n"
+                else:
+                    text += f"   💰 {price_min}-{price_max} ₽\n"
+            elif price_min > 0:
+                text += f"   💰 от {price_min} ₽\n"
+                
+            if duration > 0:
+                text += f"   ⏱ {duration} мин\n"
+            text += "\n"
+        
+        # Добавляем информацию о количестве услуг
+        text += f"📊 *Всего услуг: {total_services}*\n"
+        text += f"📄 *Показано: {page_offset + 1}-{min(page_offset + services_per_message, total_services)} из {total_services}*\n"
+        
+        keyboard = []
+        
+        # Добавляем кнопки навигации
+        nav_buttons = []
+        if page_offset > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️ Назад", callback_data=f"services_page_{page_offset - services_per_message}"))
+        if page_offset + services_per_message < total_services:
+            nav_buttons.append(InlineKeyboardButton("Вперед ➡️", callback_data=f"services_page_{page_offset + services_per_message}"))
+        if nav_buttons:
+            keyboard.append(nav_buttons)
+        
+        keyboard.extend([
+            [InlineKeyboardButton("📝 Записаться", callback_data="book_appointment")],
+            [InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_menu")]
+        ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, parse_mode='Markdown', reply_markup=reply_markup)
+        
+    except Exception as e:
+        log.error(f"Error showing services page: {e}")
+        await query.edit_message_text("❌ Ошибка при загрузке услуг.")
 
 async def show_services(query: CallbackQuery):
     company_id = get_company_id()
@@ -884,47 +971,81 @@ async def show_services(query: CallbackQuery):
         await query.edit_message_text("❌ Не удалось загрузить услуги. Попробуйте позже.")
         return
     
-    text = "✨ *Наши услуги с ценами* ✨\n\n"
-    for i, service in enumerate(services[:8], 1):  # Показываем первые 8 услуг
-        name = service.get("title", "Без названия")
-        price_min = service.get("price_min", 0)
-        price_max = service.get("price_max", 0)
-        cost = service.get("cost", 0)
-        duration = service.get("length", 0)
-        
-        # Красивое форматирование с эмодзи
-        if "маникюр" in name.lower():
-            emoji = "💅"
-        elif "педикюр" in name.lower():
-            emoji = "🦶"
-        elif "массаж" in name.lower():
-            emoji = "💆"
-        else:
-            emoji = "✨"
-            
-        text += f"{emoji} *{name}*\n"
-        
-        # Показываем реальные цены - проверяем все поля цен
-        if cost > 0:
-            text += f"   💰 {cost} ₽\n"
-        elif price_min > 0 and price_max > 0:
-            if price_min == price_max:
-                text += f"   💰 {price_min} ₽\n"
-            else:
-                text += f"   💰 {price_min}-{price_max} ₽\n"
-        elif price_min > 0:
-            text += f"   💰 от {price_min} ₽\n"
-            
-        if duration > 0:
-            text += f"   ⏱ {duration} мин\n"
-        text += "\n"
+    # Разделяем услуги на части по 6 услуг на сообщение (чтобы поместилось)
+    services_per_message = 6
+    total_services = len(services)
     
-    keyboard = [
-        [InlineKeyboardButton("📝 Записаться", callback_data="book_appointment")],
-        [InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_menu")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(text, parse_mode='Markdown', reply_markup=reply_markup)
+    for page in range(0, total_services, services_per_message):
+        page_services = services[page:page + services_per_message]
+        
+        if page == 0:
+            text = "✨ *Наши услуги с ценами* ✨\n\n"
+        else:
+            text = f"✨ *Услуги (часть {page // services_per_message + 1})* ✨\n\n"
+        
+        for i, service in enumerate(page_services, 1):
+            name = service.get("title", "Без названия")
+            price_min = service.get("price_min", 0)
+            price_max = service.get("price_max", 0)
+            cost = service.get("cost", 0)
+            duration = service.get("length", 0)
+            
+            # Красивое форматирование с эмодзи
+            if "маникюр" in name.lower():
+                emoji = "💅"
+            elif "педикюр" in name.lower():
+                emoji = "🦶"
+            elif "массаж" in name.lower():
+                emoji = "💆"
+            else:
+                emoji = "✨"
+                
+            text += f"{emoji} *{name}*\n"
+            
+            # Показываем реальные цены - проверяем все поля цен
+            if cost > 0:
+                text += f"   💰 {cost} ₽\n"
+            elif price_min > 0 and price_max > 0:
+                if price_min == price_max:
+                    text += f"   💰 {price_min} ₽\n"
+                else:
+                    text += f"   💰 {price_min}-{price_max} ₽\n"
+            elif price_min > 0:
+                text += f"   💰 от {price_min} ₽\n"
+                
+            if duration > 0:
+                text += f"   ⏱ {duration} мин\n"
+            text += "\n"
+        
+        # Добавляем информацию о количестве услуг
+        if total_services > services_per_message:
+            text += f"📊 *Всего услуг: {total_services}*\n"
+            if page + services_per_message < total_services:
+                text += f"📄 *Показано: {page + 1}-{min(page + services_per_message, total_services)} из {total_services}*\n"
+        
+        keyboard = []
+        
+        # Добавляем кнопки навигации если есть несколько страниц
+        if total_services > services_per_message:
+            nav_buttons = []
+            if page > 0:
+                nav_buttons.append(InlineKeyboardButton("⬅️ Назад", callback_data=f"services_page_{page - services_per_message}"))
+            if page + services_per_message < total_services:
+                nav_buttons.append(InlineKeyboardButton("Вперед ➡️", callback_data=f"services_page_{page + services_per_message}"))
+            if nav_buttons:
+                keyboard.append(nav_buttons)
+        
+        keyboard.extend([
+            [InlineKeyboardButton("📝 Записаться", callback_data="book_appointment")],
+            [InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_menu")]
+        ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        if page == 0:
+            await query.edit_message_text(text, parse_mode='Markdown', reply_markup=reply_markup)
+        else:
+            await query.message.reply_text(text, parse_mode='Markdown', reply_markup=reply_markup)
 
 async def show_masters(query: CallbackQuery):
     company_id = get_company_id()
